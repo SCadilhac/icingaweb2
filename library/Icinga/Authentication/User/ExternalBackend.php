@@ -20,6 +20,14 @@ class ExternalBackend implements UserBackendInterface
     public static $remoteUserEnvvars = array('REMOTE_USER', 'REDIRECT_REMOTE_USER');
 
     /**
+     * Possible variables where to read the groups from
+     *
+     * @var string[]
+     */
+    public static $remoteGroupsEnvvars = array('REMOTE_GROUPS');
+
+
+    /**
      * The name of this backend
      *
      * @var string
@@ -97,6 +105,25 @@ class ExternalBackend implements UserBackendInterface
     }
 
     /**
+     * Get the remote groups information from environment or $_SERVER, if any
+     *
+     * @return  array   Contains always two entries, the groups and origin which may both set to null.
+     */
+    public static function getRemoteGroupsInformation()
+    {
+        foreach (static::$remoteGroupsEnvvars as $envVar) {
+            $groupNames = static::getRemoteUser($envVar);
+            if ($groupNames !== null) {
+                $groups = explode(",", $groupNames);
+                $groups = array_map('trim', $groups);
+                return array($groups, $envVar);
+            }
+        }
+
+        return array(null, null);
+    }
+
+    /**
      * {@inheritdoc}
      */
     public function authenticate(User $user, $password = null)
@@ -116,6 +143,12 @@ class ExternalBackend implements UserBackendInterface
             }
 
             $user->setUsername($username);
+
+            list($groups, $field) = static::getRemoteGroupsInformation();
+            if ($groups !== null) {
+                $user->setGroups($groups);
+            }
+
             return true;
         }
 
